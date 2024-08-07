@@ -11,6 +11,9 @@ if [[ -z "$email" || -z "$dns" || -z "$member" || -z "$path" ]]; then
     exit 1
 fi
 
+# Remove caracteres curinga (*) do domínio para obter o diretório correto
+dns_dir="${dns//\*/}"
+
 # Verifica se o comando está instalado
 command_exists() {
     command -v "$1" &>/dev/null
@@ -85,5 +88,8 @@ certbot certonly \
     --preferred-challenges "dns-01" \
     --server "https://dv.acme-v02.api.pki.goog/directory" \
     --domains "$dns" || { echo "Falha ao solicitar certificado."; exit 1; }
+
+# Chama o script secundário para manipular os certificados e rotacionar no MongoDB
+./manage_certificates.sh "$dns_dir" || { echo "Falha ao manipular os certificados e rotacionar no MongoDB."; exit 1; }
 
 echo "Script concluído com sucesso."
