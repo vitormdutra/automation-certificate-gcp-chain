@@ -40,7 +40,7 @@ fi
 # Adiciona binding de política IAM no projeto
 echo "Adicionando binding de política IAM no projeto..."
 gcloud projects add-iam-policy-binding vaas-dev-core-app-0 \
-  --member="$member" \
+  --member=user:"$member" \
   --role=roles/publicca.externalAccountKeyCreator || { echo "Falha ao adicionar binding de política IAM."; exit 1; }
 
 # Cria uma chave de conta externa
