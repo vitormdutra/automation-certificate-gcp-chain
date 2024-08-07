@@ -40,7 +40,7 @@ fi
 # Adiciona binding de política IAM no projeto
 echo "Adicionando binding de política IAM no projeto..."
 gcloud projects add-iam-policy-binding vaas-dev-core-app-0 \
-  --member=user:"$member" \
+  --member=serviceAccount:"$member" \
   --role=roles/publicca.externalAccountKeyCreator || { echo "Falha ao adicionar binding de política IAM."; exit 1; }
 
 # Cria uma chave de conta externa
@@ -51,8 +51,8 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
-keyId=$(echo "$output" | grep "keyId:" | awk '{print $2}')
 b64MacKey=$(echo "$output" | grep "b64MacKey:" | awk '{print $2}')
+keyId=$(echo "$output" | grep "keyId:" | awk '{print $2}' | sed 's/\]$//')
 
 if [[ -z "$keyId" || -z "$b64MacKey" ]]; then
     echo "Falha ao obter keyId ou b64MacKey."
@@ -61,21 +61,27 @@ fi
 
 echo "Chave de conta externa criada com sucesso."
 
-# Executa o comando certbot register
-echo "Registrando com Certbot..."
-certbot register \
-    --email "$email" \
-    --no-eff-email \
-    --server "https://dv.acme-v02.api.pki.goog/directory" \
-    --eab-kid "$keyId" \
-    --eab-hmac-key "$b64MacKey" || { echo "Falha ao registrar com Certbot."; exit 1; }
+# Verifica se o Certbot já está registrado
+account_dir="/etc/letsencrypt/accounts/dv.acme-v02.api.pki.goog/directory"
+
+if [ -d "$account_dir" ] && [ -n "$(ls -A $account_dir)" ]; then
+    echo "O Certbot já está registrado. Pulando o registro."
+else
+    echo "Registrando com Certbot..."
+    certbot register \
+        --email "$email" \
+        --no-eff-email \
+        --server "https://dv.acme-v02.api.pki.goog/directory" \
+        --eab-kid "$keyId" \
+        --eab-hmac-key "$b64MacKey" \
+        --agree-tos || { echo "Falha ao registrar com Certbot."; exit 1; }
+fi
 
 # Executa o comando certbot certonly utilizando o plugin Cloudflare
 echo "Solicitando certificado com Certbot usando o plugin Cloudflare..."
 certbot certonly \
     --dns-cloudflare \
     --dns-cloudflare-credentials "$path" \
-    --manual \
     --preferred-challenges "dns-01" \
     --server "https://dv.acme-v02.api.pki.goog/directory" \
     --domains "$dns" || { echo "Falha ao solicitar certificado."; exit 1; }
