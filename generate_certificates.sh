@@ -12,7 +12,7 @@ if [[ -z "$email" || -z "$dns" || -z "$member" || -z "$path" ]]; then
 fi
 
 # Remove caracteres curinga (*) do domínio para obter o diretório correto
-dns_dir="${dns//\*/}"
+dns_dir="${dns//\*\./}"
 
 # Verifica se o comando está instalado
 command_exists() {
